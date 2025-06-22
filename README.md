@@ -4,6 +4,22 @@
 
 ---
 
+## 🧭 Table of Contents
+1. [Initial Project Setup](#-1-initial-project-setup)
+2. 2. [Required Packages](#-2-required-packages)
+3. [Security (Jwt authen)](#-3-security-jwt-authen)
+4. [Main App Setup (`main.ts`)](#-4-main-app-setup-maints)
+5. [Swagger Setup](#-5-swagger-setup)
+6. [Global Error Handling](#-6-global-error-handling)
+7. [Multiple Database Concept](#-7-multiple-database-concept)
+8. [Database Module Example](#-8-database-module-example)
+9. [Example: Product Module](#-9-example-product-module)
+10. [Auth From DB_SELLER](#-10-auth-from-db_seller)
+11. [Testing Suggestion](#-11-testing-suggestion)
+12. [ENV Example](#-12-env-example)
+13. [Summary Checklist](#-13-summary-checklist)
+
+
 ## 📦 1. Initial Project Setup
 
 ### 🔧 Basic Setup
@@ -38,21 +54,61 @@ src/
 
 ## 📄 2. Required Packages
 ```bash
-npm install class-validator class-transformer @nestjs/swagger swagger-ui-express cookie-parser
+npm install class-validator class-transformer @nestjs/swagger swagger-ui-express cookie-parser @nestjs/jwt passport-jwt @nestjs/passport passport
 ```
 
 ---
 
-## 🚀 3. Main App Setup (`main.ts`)
-```ts
-app.setGlobalPrefix('api');
-app.useGlobalPipes(new ValidationPipe({
-  transform: true,
-  whitelist: true,
-  forbidNonWhitelisted: false,
-}));
-app.use(cookieParser());
+## 🔐 3. Security (Jwt authen)
+```bash
+
 ```
+
+### Setup JwtModule
+```bash
+npm install @nestjs/jwt passport-jwt @nestjs/passport passport
+```
+
+```ts
+JwtModule.register({
+  secret: process.env.JWT_SECRET,
+  signOptions: { expiresIn: '1d' },
+});
+```
+
+### Auth Guard
+```ts
+@Injectable()
+export class JwtAuthGuard extends AuthGuard('jwt') {}
+```
+
+### Strategy
+```ts
+@Injectable()
+export class JwtStrategy extends PassportStrategy(Strategy) {
+  constructor() {
+    super({
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ignoreExpiration: false,
+      secretOrKey: process.env.JWT_SECRET,
+    });
+  }
+
+  async validate(payload: any) {
+    return { userId: payload.sub, username: payload.username };
+  }
+}
+```
+
+### Controller Example
+```ts
+@UseGuards(JwtAuthGuard)
+@Get('profile')
+getProfile(@Request() req) {
+  return req.user;
+}
+```
+
 
 ---
 
@@ -306,64 +362,64 @@ product_items: ProductItem[];
 ```ts
 import { Module } from '@nestjs/common';
 import { DatasourceTokens } from './datasource_tokens.enum';
-import { SellerDataSourceRead } from './seller.datasource.read';
-import { SellerDataSourceWrite } from './seller.datasource.write';
-import { ShopDataSourceRead } from './shop.datasource.read';
-import { ShopDataSourceWrite } from './shop.datasource.write';
+import { SellersDataSourceRead } from './sellers.datasource.read';
+import { SellersDataSourceWrite } from './sellers.datasource.write';
+import { ShopsDataSourceRead } from './shops.datasource.read';
+import { ShopsDataSourceWrite } from './shops.datasource.write';
 
 @Module({
     providers: [
         {
-            provide: DatasourceTokens.SELLER_DB_WRITE,
+            provide: DatasourceTokens.SELLERS_DB_WRITE,
             useFactory: async () => {
-                if (!SellerDataSourceWrite.isInitialized) {
-                    await SellerDataSourceWrite.initialize();
+                if (!SellersDataSourceWrite.isInitialized) {
+                    await SellesrDataSourceWrite.initialize();
                 }
-                return SellerDataSourceWrite;
+                return SellersDataSourceWrite;
             },
         },
         {
-            provide: DatasourceTokens.SELLER_DB_READ,
+            provide: DatasourceTokens.SELLERS_DB_READ,
             useFactory: async () => {
                 if (!SellerDataSourceRead.isInitialized) {
-                    await SellerDataSourceRead.initialize();
+                    await SellersDataSourceRead.initialize();
                 }
-                return SellerDataSourceRead;
+                return SellersDataSourceRead;
             },
         },
         {
-            provide: DatasourceTokens.SHOP_DB_WRITE,
+            provide: DatasourceTokens.SHOPS_DB_WRITE,
             useFactory: async () => {
                 if (!ShopDataSourceWrite.isInitialized) {
-                    await ShopDataSourceWrite.initialize();
+                    await ShopSDataSourceWrite.initialize();
                 }
-                return ShopDataSourceWrite;
+                return ShopSDataSourceWrite;
             },
         },
         {
-            provide: DatasourceTokens.SHOP_DB_READ,
+            provide: DatasourceTokens.SHOPS_DB_READ,
             useFactory: async () => {
-                if (!ShopDataSourceRead.isInitialized) {
+                if (!ShopSDataSourceRead.isInitialized) {
                     await ShopDataSourceRead.initialize();
                 }
-                return ShopDataSourceRead;
+                return ShopSDataSourceRead;
             },
         },
     ],
     exports: [
-        DatasourceTokens.SELLER_DB_WRITE,
-        DatasourceTokens.SELLER_DB_READ,
-        DatasourceTokens.SHOP_DB_WRITE,
-        DatasourceTokens.SHOP_DB_READ,
+        DatasourceTokens.SELLERS_DB_WRITE,
+        DatasourceTokens.SELLERS_DB_READ,
+        DatasourceTokens.SHOPS_DB_WRITE,
+        DatasourceTokens.SHOPS_DB_READ,
     ],
 })
 export class DatabaseModule { }
 
 export class DatasourceTokens {
-    static readonly SERVER_DB_WRITE = 'SERVER_DB_WRITE';
-    static readonly SERVER_DB_READ = 'SERVER_DB_READ';
-    static readonly TRENDS_DB_WRITE = 'TRENDS_DB_WRITE';
-    static readonly TRENDS_DB_READ = 'TRENDS_DB_READ';
+    static readonly SELLERS_DB_WRITE = 'SELLERS_DB_WRITE';
+    static readonly SELLERS_DB_READ = 'SELLERS_DB_READ';
+    static readonly SHOPS_DB_WRITE = 'SHOPS_DB_WRITE';
+    static readonly SHOPS_DB_READ = 'SHOPS_DB_READ';
 }
 ```
 
@@ -400,8 +456,8 @@ export const SellersDataSourceWrite = new DataSource({
 @Injectable()
 export class ProductService {
   constructor(
-    @Inject(DatasourceTokens.SHOP_DB_WRITE) private shopWrite: DataSource,
-    @Inject(DatasourceTokens.SELLER_DB_READ) private sellerRead: DataSource,
+    @Inject(DatasourceTokens.SHOPS_DB_WRITE) private shopWrite: DataSource,
+    @Inject(DatasourceTokens.SELLERS_DB_READ) private sellerRead: DataSource,
   ) {}
 
   async createProduct(data: CreateProductDTO): Promise<Product> {
@@ -434,7 +490,7 @@ export class ProductController {
 ```ts
 @Injectable()
 export class AuthService {
-  constructor(@Inject(DatasourceTokens.SELLER_DB_READ) private sellerRead: DataSource) {}
+  constructor(@Inject(DatasourceTokens.SELLERS_DB_READ) private sellerRead: DataSource) {}
 
   async validateUser(username: string, password: string): Promise<SellerUser> {
     const user = await this.sellerRead.manager.findOne(SellerUser, {
@@ -475,7 +531,8 @@ DB_SHOP_NAME=shops_db
 ---
 
 ## ✅ Summary Checklist
-- [x] Swagger + BasicAuth
+- [x] Jwt Auth
+- [x] Swagger 
 - [x] GlobalPipe + Validation Exception
 - [x] GlobalFilter
 - [x] Multiple DB via DI
