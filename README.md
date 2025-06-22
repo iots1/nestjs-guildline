@@ -290,12 +290,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
 ---
 
 ## 🧠 6. Multiple Database Concept
-> กรณีมี 2 ฐาน: `DB_SELLER`, `DB_SHOP`
+> กรณีมี 2 ฐาน: `SELLER`, `SHOP`
 
-| DB Name | Content |
+| DB Name | Table |
 |---------|---------|
-| DB_SELLER | ข้อมูลผู้ขาย: seller, seller_user |
-| DB_SHOP   | ข้อมูลร้านค้า: shop, product, product_item |
+| SELLER | ข้อมูลผู้ขาย: sellers, seller_addresses |
+| SHOP   | ข้อมูลร้านค้า: shops, products, product_items, orders |
 
 ---
 
@@ -486,7 +486,7 @@ export class ProductController {
 
 ---
 
-## 🔐 9. Auth From DB_SELLER
+## 🔐 9. Auth From SELLER
 ```ts
 @Injectable()
 export class AuthService {
@@ -519,13 +519,13 @@ DB_SELLER_HOST=localhost
 DB_SELLER_PORT=3306
 DB_SELLER_USER=root
 DB_SELLER_PASSWORD=1234
-DB_SELLER_NAME=sellers_db
+DB_SELLER_NAME=SELLER
 
 DB_SHOP_HOST=localhost
 DB_SHOP_PORT=3306
 DB_SHOP_USER=root
 DB_SHOP_PASSWORD=1234
-DB_SHOP_NAME=shops_db
+DB_SHOP_NAME=SHOP
 ```
 
 ---
