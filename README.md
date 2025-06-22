@@ -69,11 +69,144 @@ SwaggerModule.setup('api/docs', app, document);
 
 ---
 
-## ⚠️ 5. Global Error Handling
+## ⚠️ 5. Global Error Handling (main.ts)
 ```ts
-app.useGlobalFilters(new HttpExceptionFilter());
+// Helper function to recursively extract validation errors
+function extractValidationErrors(errors: ValidationError[]): Record<string, any> {
+  return errors.reduce((acc, error) => {
+    // If we have constraints, add them
+    if (error.constraints) {
+      acc[error.property] = Object.values(error.constraints);
+    }
+
+    // If we have children, process them too
+    if (error.children && error.children.length > 0) {
+      // For nested properties, create a proper path
+      const childErrors = extractValidationErrors(error.children);
+
+      // Add the child errors with proper property paths
+      Object.keys(childErrors).forEach(childProp => {
+        const path = error.property ? `${error.property}.${childProp}` : childProp;
+        acc[path] = childErrors[childProp];
+      });
+    }
+
+    return acc;
+  }, {} as Record<string, any>);
+}
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: false,
+      stopAtFirstError: false, // Changed to false to collect all errors
+      transformOptions: {
+        enableImplicitConversion: false
+      },
+      // Improved exception factory that handles nested validation errors
+      exceptionFactory: (errors: ValidationError[]) => {
+        const formattedErrors = extractValidationErrors(errors);
+        return new BadRequestException({
+          message: 'Validation failed',
+          errors: formattedErrors
+        });
+      }
+    }),
+  );
+}
 ```
 รองรับ validation error ซ้อนหลายชั้นได้ (ใช้ `exceptionFactory` ใน `ValidationPipe`)
+
+```ts
+import {
+  ArgumentsHost,
+  Catch,
+  ExceptionFilter,
+  HttpException,
+} from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { Request, Response } from 'express';
+
+@Catch(HttpException)
+export class HttpExceptionFilter implements ExceptionFilter {
+  constructor(
+    // private readonly _logs: LogsService,
+    private readonly _jwt: JwtService,
+  ) {}
+
+  catch(exception: HttpException, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest<Request>();
+    const status = exception.getStatus();
+
+    const exceptionData = {
+      success: false,
+      timestamp: new Date().toISOString(),
+      message: exception.getResponse()['message'] || exception.message || null,
+      errors: exception.getResponse()['errors'] || null,
+      code: exception.getResponse()['code'] || 500000,
+      method: request.method,
+      path: request.url,
+    };
+
+    console.log(exceptionData);
+
+    if (
+      exceptionData.message !== 'Cannot GET /favicon.ico' &&
+      exceptionData.message !== 'Cannot GET /'
+    ) {
+      const authorization =
+        request.headers['authorization'] || request.headers['Authorization'];
+      let userId = null;
+      try {
+        if (authorization) {
+          if (typeof authorization === 'string') {
+            userId = this._jwt.decode(authorization.split(' ')[1]).user_id;
+          }
+        }
+      } catch (ex) {}
+
+      const logData = {
+        log_user_id: userId,
+        log_device_model:
+          typeof request.headers['device-model'] === 'string'
+            ? request.headers['device-model']
+            : undefined,
+        log_device_platform: request.headers['device-platform']?.toString(),
+        log_device_id: request.headers['device-id']?.toString(),
+        log_device_token: request.headers['device-token']?.toString(),
+        log_device_brand: request.headers['device-brand']?.toString(),
+        log_device_version: request.headers['device-version']?.toString(),
+        api_key: request.headers['api-key']?.toString(),
+        app_version: request.headers['app-version']?.toString(),
+        log_type: 2,
+        log_function: 'HttpExceptionFilter',
+        error_message: exceptionData.message,
+        user_agent: request.headers['user-agent']?.toString(),
+        debug_data: {
+          request: {
+            method: request.method,
+            url: request.url,
+            body: request.body,
+          },
+          response: {
+            status: status,
+            data: exceptionData,
+          },
+        },
+      };
+      // this._logs.create(logData);
+    }
+
+    response.status(status).json(exceptionData);
+  }
+}
+```
 
 ---
 
