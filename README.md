@@ -58,13 +58,36 @@ app.use(cookieParser());
 
 ## 📚 4. Swagger Setup
 ```ts
-const config = new DocumentBuilder()
-  .setTitle('API')
-  .setVersion('1.0')
-  .addBasicAuth()
-  .build();
-const document = SwaggerModule.createDocument(app, config);
-SwaggerModule.setup('api/docs', app, document);
+  // Basic Auth
+  const config = new DocumentBuilder()
+    .setTitle('My API')
+    .setVersion('1')
+    .addTag('Trends API')
+    .addBasicAuth(
+      { type: 'http', scheme: 'basic', description: 'Basic authentication for API endpoints' },
+      'api-basic-auth' // This key must match the name used in @ApiBearerAuth('api-basic-auth')
+    )
+    .build();
+  const documentFactory = () => SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup(API_PREFIX + '/docs', app, documentFactory);
+
+  // Jwt Auth
+  const config = new DocumentBuilder()
+  .setTitle('My API')
+    .setVersion('1')
+    .addTag('Trends API')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'Authorization',
+        in: 'header',
+      },
+      'access-token', // This key must match the name used in @ApiBearerAuth('access-token')
+    )
+    .build();
+
 ```
 
 ---
