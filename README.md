@@ -6,7 +6,7 @@
 
 ## 🧭 Table of Contents
 1. [Initial Project Setup](#-1-initial-project-setup)
-2. 2. [Required Packages](#-2-required-packages)
+2. [Required Packages](#-2-required-packages)
 3. [Security (Jwt authen)](#-3-security-jwt-authen)
 4. [Main App Setup (`main.ts`)](#-4-main-app-setup-maints)
 5. [Swagger Setup](#-5-swagger-setup)
