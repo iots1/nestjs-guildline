@@ -58,7 +58,7 @@ npm install class-validator class-transformer @nestjs/swagger swagger-ui-express
 
 ---
 
-## 🔐 3. Security (Jwt authen)
+## 🔐 3. Security Jwt authen
 ```bash
 
 ```
